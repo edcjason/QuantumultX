@@ -1,11 +1,12 @@
 [Plugin]
 name = 鲍鱼盒子18+
-desc = 鲍鱼盒子接口重写脚本
+desc = 鲍鱼盒子接口重写脚本 (修复端口匹配)
 author = WeiGiegie
 date = 2026-05-20
 
 [Script]
-http-request ^https?:\/\/.+\/api\/(video\/report_item?|live\/room\/detail?|video\/related?|video\/detail|socialposts_info|my\/profile) script-path=https://raw.githubusercontent.com/edcjason/QuantumultX/main/byhz.js, requires-body=false, timeout=10, tag=鲍鱼盒子18+
+# 修改了正则表达式，兼容带端口号的请求 (如 :8001)
+http-request ^https?:\/\/.*\/api\/(video\/report_item|live\/room\/detail|video\/related|video\/detail|socialposts_info|my\/profile) script-path=https://raw.githubusercontent.com/edcjason/QuantumultX/main/byhz.js, requires-body=false, timeout=10, tag=鲍鱼盒子18+
 
 [URL Rewrite]
 ^https?://siajksslwiso\.anningsh\.com/report - reject-200
