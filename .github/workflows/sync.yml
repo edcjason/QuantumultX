@@ -2,8 +2,8 @@ name: Sync Remote Config
 
 on:
   schedule:
-    - cron: '0 0 * * *'
-  workflow_dispatch:
+    - cron: '0 0 * * *'  # 每天定时自动同步
+  workflow_dispatch:      # 支持手动触发
 
 permissions:
   contents: write
@@ -15,84 +15,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.x'
-
-      - name: Fetch, Clean and Convert Config
+      - name: Fetch Pure QuantumultX Config
         run: |
-          cat << 'EOF' > convert.py
-          import urllib.request
-          import re
-
-          url = "http://ddgksf2013.top/Profile/QuantumultX.conf"
-          req = urllib.request.Request(url, headers={'User-Agent': 'Quantumult%20X/1.0.30'})
-          
-          try:
-              with urllib.request.urlopen(req) as response:
-                  content = response.read().decode('utf-8')
-          except Exception as e:
-              print(f"Error fetching config: {e}")
-              exit(1)
-
-          # Surge 标头定义
-          surge_header = """[General]
-          loglevel = notify
-          dns-server = system, 119.29.29.29, 223.5.5.5
-
-          [Proxy]
-          DIRECT = direct
-          REJECT = reject
-
-          [Proxy Group]
-          节点选择 = select, DIRECT
-          自动选择 = url-test, DIRECT, interval=600, tolerance=100
-          国外媒体 = select, 节点选择, DIRECT
-          国内媒体 = select, DIRECT, 节点选择
-          微软服务 = select, DIRECT, 节点选择
-          苹果服务 = select, DIRECT, 节点选择
-          Telegram = select, 节点选择, DIRECT
-          Final = select, 节点选择, DIRECT
-
-          [Rule]
-          """
-
-          rules = []
-          
-          # 提取 [filter_local] 区域内的规则并转换为 Surge 格式
-          filter_section = re.search(r'\[filter_local\](.*?)(\n\[|\Z)', content, re.DOTALL)
-          if filter_section:
-              lines = filter_section.group(1).splitlines()
-              for line in lines:
-                  line = line.strip()
-                  if not line or line.startswith(';') or line.startswith('#'):
-                      continue
-                  
-                  # 转换 Q-X 规则语法为 Surge 语法
-                  line = re.sub(r'^host,', 'DOMAIN,', line, flags=re.IGNORECASE)
-                  line = re.sub(r'^host-suffix,', 'DOMAIN-SUFFIX,', line, flags=re.IGNORECASE)
-                  line = re.sub(r'^host-keyword,', 'DOMAIN-KEYWORD,', line, flags=re.IGNORECASE)
-                  line = re.sub(r'^ip-cidr,', 'IP-CIDR,', line, flags=re.IGNORECASE)
-                  line = re.sub(r'^geoip,', 'GEOIP,', line, flags=re.IGNORECASE)
-                  line = re.sub(r'^final,', 'FINAL,', line, flags=re.IGNORECASE)
-                  
-                  rules.append(line)
-
-          # 写入转换后的配置文件
-          with open("mygz.conf", "w", encoding="utf-8") as f:
-              f.write(surge_header)
-              f.write("\n".join(rules))
-              f.write("\n")
-
-          print("Successfully converted Q-X config to Surge format for Tower.")
-          EOF
-
-          python convert.py
+          # 伪装 QX 的 User-Agent 绕过 ddgksf2013.top 的防盗链限制，直接抓取原汁原味的配置文件
+          curl -sSL -f -H "User-Agent: Quantumult%20X/1.0.30" "http://ddgksf2013.top/Profile/QuantumultX.conf" -o mygz.conf
 
       - name: Commit and Push
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add mygz.conf
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Convert Q-X rules into standard Surge format" && git push)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Sync original QuantumultX config" && git push)
