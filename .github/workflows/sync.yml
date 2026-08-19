@@ -15,10 +15,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download Raw Rules and Convert locally
+      - name: Fetch and Convert Rules
         run: |
-          # 1. 直接拉取墨鱼真正的原生配置文件 (Raw)
-          curl -sSL "https://raw.githubusercontent.com/ddgksf2013/Filter/master/QuantumultX.conf" -o raw.conf
+          # 1. 带上 Quantumult X 的 User-Agent 头，绕过 ddgksf2013.top 的防盗链/403限制
+          curl -sSL -f -H "User-Agent: Quantumult%20X/1.0.30" "http://ddgksf2013.top/Profile/QuantumultX.conf" -o raw.conf || \
+          curl -sSL -f "https://cdn.jsdelivr.net/gh/ddgksf2013/Profile/QuantumultX.conf" -o raw.conf
 
           # 2. 写入塔台必需的 Surge 基础策略组标头
           cat << 'EOF' > mygz.conf
@@ -42,7 +43,7 @@ jobs:
 
           EOF
 
-          # 3. 本地清理并转换规则格式（将 QuantumultX 关键字转为 Surge 格式）
+          # 3. 将 QuantumultX 转换并追加至配置末尾
           sed -E \
             -e 's/^HOST,(.*)/DOMAIN,\1/' \
             -e 's/^HOST-SUFFIX,(.*)/DOMAIN-SUFFIX,\1/' \
@@ -57,4 +58,4 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add mygz.conf
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Local regex conversion without third party API" && git push)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Fix UA for ddgksf2013.top" && git push)
