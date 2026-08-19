@@ -15,12 +15,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Fetch and Convert Real Config
+      - name: Download Raw Rules and Convert locally
         run: |
-          # 1. 使用 subconverter 将墨鱼 GitHub 仓库真正的 Q-X 纯文本配置转换为 Surge 格式
-          curl -sSL "https://api.v1.mk/sub?target=surge&url=https%3A%2F%2Fraw.githubusercontent.com%2Fddgksf2013%2FFilter%2Fmaster%2FQuantumultX.conf&ver=4" -o raw.conf
+          # 1. 直接拉取墨鱼真正的原生配置文件 (Raw)
+          curl -sSL "https://raw.githubusercontent.com/ddgksf2013/Filter/master/QuantumultX.conf" -o raw.conf
 
-          # 2. 写入标准的 Surge 头部声明，确保塔台 100% 能通过策略组校验
+          # 2. 写入塔台必需的 Surge 基础策略组标头
           cat << 'EOF' > mygz.conf
           [General]
           loglevel = notify
@@ -42,8 +42,14 @@ jobs:
 
           EOF
 
-          # 3. 追加转换后的真正分流/重写规则
-          cat raw.conf >> mygz.conf
+          # 3. 本地清理并转换规则格式（将 QuantumultX 关键字转为 Surge 格式）
+          sed -E \
+            -e 's/^HOST,(.*)/DOMAIN,\1/' \
+            -e 's/^HOST-SUFFIX,(.*)/DOMAIN-SUFFIX,\1/' \
+            -e 's/^HOST-KEYWORD,(.*)/DOMAIN-KEYWORD,\1/' \
+            -e 's/,[ ]*([A-Za-z0-9_-]+)$/, \1/' \
+            raw.conf >> mygz.conf
+
           rm raw.conf
 
       - name: Commit and Push
@@ -51,4 +57,4 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add mygz.conf
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Fix raw URL and sync Surge config" && git push)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Local regex conversion without third party API" && git push)
