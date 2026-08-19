@@ -15,12 +15,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Fetch and Patch Surge Config
+      - name: Fetch and Convert Real Config
         run: |
-          # 1. 下载墨鱼 Surge 版本的配置（如果该 URL 不可用，则自动退回转换 QuantumultX 配置）
-          curl -sSL "http://ddgksf2013.top/Profile/Surge.conf" -o raw.conf || curl -sSL "http://ddgksf2013.top/Profile/QuantumultX.conf" -o raw.conf
+          # 1. 使用 subconverter 将墨鱼 GitHub 仓库真正的 Q-X 纯文本配置转换为 Surge 格式
+          curl -sSL "https://api.v1.mk/sub?target=surge&url=https%3A%2F%2Fraw.githubusercontent.com%2Fddgksf2013%2FFilter%2Fmaster%2FQuantumultX.conf&ver=4" -o raw.conf
 
-          # 2. 生成包含塔台必须校验的 [Proxy] 与 [Proxy Group] 的完整 Surge 标头
+          # 2. 写入标准的 Surge 头部声明，确保塔台 100% 能通过策略组校验
           cat << 'EOF' > mygz.conf
           [General]
           loglevel = notify
@@ -29,10 +29,9 @@ jobs:
           [Proxy]
           DIRECT = direct
           REJECT = reject
-          AUTO = url-test, policy-path=https://sub.store, interval=600, tolerance=100
 
           [Proxy Group]
-          节点选择 = select, DIRECT, AUTO
+          节点选择 = select, DIRECT
           自动选择 = url-test, DIRECT, interval=600, tolerance=100
           国外媒体 = select, 节点选择, DIRECT
           国内媒体 = select, DIRECT, 节点选择
@@ -43,7 +42,7 @@ jobs:
 
           EOF
 
-          # 3. 将墨鱼的 Rule / Rewrite 追加到配置文件末尾
+          # 3. 追加转换后的真正分流/重写规则
           cat raw.conf >> mygz.conf
           rm raw.conf
 
@@ -52,4 +51,4 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add mygz.conf
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Patch Surge config with full policy groups for Tower" && git push)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Fix raw URL and sync Surge config" && git push)
