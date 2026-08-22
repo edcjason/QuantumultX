@@ -1,0 +1,32 @@
+name: Sync QiShuiMusic Script
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # 每天定时自动同步
+  workflow_dispatch:      # 支持手动触发
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Fetch and Patch QiShuiMusic Script
+        run: |
+          # 1. 下载墨鱼原版汽水音乐去广告脚本
+          curl -sSL "https://raw.githubusercontent.com/ddgksf2013/Rewrite/refs/heads/master/AdBlock/QiShuiMusicAds.conf" -o qishui.conf
+
+          # 2. 自动删除导致看广告领会员失败的两行拦截规则
+          sed -i '/\/luna\/media_ads/d' qishui.conf
+          sed -i '/\/luna\/ads/d' qishui.conf
+
+      - name: Commit and Push
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add qishui.conf
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto sync and patch QiShuiMusic script" && git push)
