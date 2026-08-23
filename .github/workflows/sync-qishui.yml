@@ -37,16 +37,16 @@ jobs:
 
           EOF
 
-          # 3. 使用 sed 逐行硬核清洗（删除含指定路径或注释的所有行）
-          sed -i '/hostname/d' raw.conf
-          sed -i '/get_domains/d' raw.conf
-          sed -i '/DNS处理/d' raw.conf
-          sed -i '/media_ads/d' raw.conf
-          sed -i '/视频广告/d' raw.conf
-          sed -i '/\/luna\/ads/d' raw.conf
-          sed -i '/通用广告/d' raw.conf
-          sed -i '/\/luna\/commerce/d' raw.conf
-          sed -i '/广告弹窗/d' raw.conf
+          # 3. 使用 sed 强力删除（以 # 作为分隔符，彻底解决 / 路径转义失效问题）
+          sed -i '#hostname#d' raw.conf
+          sed -i '#get_domains#d' raw.conf
+          sed -i '#DNS处理#d' raw.conf
+          sed -i '#media_ads#d' raw.conf
+          sed -i '#视频广告#d' raw.conf
+          sed -i '#/luna/ads#d' raw.conf
+          sed -i '#通用广告#d' raw.conf
+          sed -i '#/luna/commerce#d' raw.conf
+          sed -i '#广告弹窗#d' raw.conf
 
           # 4. 追加清洗后的规则内容
           cat raw.conf >> qishui.conf
@@ -66,4 +66,4 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add qishui.conf
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Fix sed stream filtering for QiShui config" && git push)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Fix sed delimiter syntax for QiShui config" && git push)
