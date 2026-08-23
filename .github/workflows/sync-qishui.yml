@@ -2,8 +2,8 @@ name: Sync QiShuiMusic Script
 
 on:
   schedule:
-    - cron: '0 0 * * *'  # 每天 UTC 0 点自动定时同步
-  workflow_dispatch:      # 支持在 GitHub 页面手动点击触发
+    - cron: '0 0 * * *'  # 每天 UTC 0 点定时同步
+  workflow_dispatch:      # 支持手动触发
 
 permissions:
   contents: write
@@ -15,54 +15,39 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - name: Fetch and Clean QiShui Config
+      - name: Fetch and Filter Config
         run: |
-          # 1. 拉取墨鱼原始规则
+          # 1. 下载墨鱼原版规则
           curl -sSL "https://raw.githubusercontent.com/ddgksf2013/Rewrite/refs/heads/master/AdBlock/QiShuiMusicAds.conf" -o raw.conf
 
-          # 2. Python 精准匹配与净化处理
-          python3 -c '
-          with open("raw.conf", "r", encoding="utf-8", errors="ignore") as f:
-              lines = f.readlines()
-
-          cleaned_lines = []
-          for line in lines:
-              # 剔除墨鱼原有的 hostname 声明
-              if line.strip().startswith("hostname"):
-                  continue
-
-              # 核心清洗：只要包含这四个特征字符串，直接抛弃（阻断 DNS 以及卡死福利中心的 3 条广告接口）
-              if any(target in line for target in ["get_domains", "luna/ads", "luna/media_ads", "luna/commerce"]):
-                  continue
-
-              cleaned_lines.append(line)
-
-          body_text = "".join(cleaned_lines).strip()
-
-          header = """# ==========================================
+          # 2. 写入自定义配置头 (包揽 QUIC 禁用与开屏拦截)
+          cat << 'EOF' > qishui.conf
+          # ==========================================
           # 汽水音乐净化配置 (自动同步墨鱼 + 兼容福利中心领会员)
           # ==========================================
 
           hostname = webcast-open.douyin.com, beta-luna.douyin.com, api.qishui.com, api5-lq.qishui.com, tnc*-*.zijieapi.com
 
           # > 01. 强制禁用 QUIC/HTTP3 & HTTP-DNS (彻底封堵开屏穿透)
-          ^https:\\/\\/tnc\\d-(bjlgy|ali[a-z]{2})\\d?\\.zijieapi\\.com\\/get_domains\\/v\\d\\/\\? url jsonjq-response-body \x27.data.opaque_data_enabled = 0 | .data.ttnet_http_dns_enabled = 0 | .data.ttnet_quic_enabled = 0 | .data.ttnet_tt_http_dns = 0 | .data.ttnet_dispatch_actions |= map(select(.action != "dispatch" and .action != "tc"))\x27
+          ^https:\/\/tnc\d-(bjlgy|ali[a-z]{2})\d?\.zijieapi\.com\/get_domains\/v\d\/\? url jsonjq-response-body '.data.opaque_data_enabled = 0 | .data.ttnet_http_dns_enabled = 0 | .data.ttnet_quic_enabled = 0 | .data.ttnet_tt_http_dns = 0 | .data.ttnet_dispatch_actions |= map(select(.action != "dispatch" and .action != "tc"))'
 
           # > 02. 精准开屏与直播弹窗拦截
-          ^https:\\/\\/(beta-luna\\.douyin|api5-lq\\.qishui)\\.com\\/luna\\/splash url reject-200
-          ^https:\\/\\/webcast-open\\.douyin\\.com\\/webcast\\/openapi\\/feed\\/\\? url reject-200
-          """
+          ^https:\/\/(beta-luna\.douyin|api5-lq\.qishui)\.com\/luna\/splash url reject-200
+          ^https:\/\/webcast-open\.douyin\.com\/webcast\/openapi\/feed\/\? url reject-200
 
-          footer = """
+          EOF
+
+          # 3. 使用 grep -v -E 硬核反向过滤（绝无死角剔除所有冲突关键字和包含它们的整行及注释）
+          grep -v -E "hostname|get_domains|media_ads|/luna/ads|/luna/commerce|视频广告|通用广告|广告弹窗|DNS处理" raw.conf >> qishui.conf || true
+
+          # 4. 追加原生视频流净化尾部
+          cat << 'EOF' >> qishui.conf
+
           # > 03. 播放页面视频流净化 (原生 JSONJQ)
-          ^https:\\/\\/(beta-luna\\.douyin|api5-lq\\.qishui)\\.com\\/luna\\/me\\/recently-played-media\\? url jsonjq-response-body \x27del(.media[] | select(.type == "video"))\x27
-          """
+          ^https:\/\/(beta-luna\.douyin|api5-lq\.qishui)\.com\/luna\/me\/recently-played-media\? url jsonjq-response-body 'del(.media[] | select(.type == "video"))'
+          EOF
 
-          final_content = header + "\n\n" + body_text + "\n\n" + footer
-
-          with open("qishui.conf", "w", encoding="utf-8") as f:
-              f.write(final_content)
-          '
+          # 5. 删除临时文件
           rm raw.conf
 
       - name: Commit and Push
@@ -70,4 +55,4 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add qishui.conf
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Clean QiShui config: fix reward ads and QUIC conflict" && git push)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Pure Shell Filter: Completely remove blocking rules" && git push)
