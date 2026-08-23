@@ -2,7 +2,7 @@ name: Sync QiShuiMusic Script
 
 on:
   schedule:
-    - cron: '0 0 * * *'  # 每天 UTC 0 点定时同步
+    - cron: '0 0 * * *'  # 每天定时自动同步
   workflow_dispatch:      # 支持手动触发
 
 permissions:
@@ -15,12 +15,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - name: Fetch and Filter Config
+      - name: Fetch and Clean QiShui Config
         run: |
-          # 1. 下载墨鱼原版规则
+          # 1. 拉取墨鱼原始规则
           curl -sSL "https://raw.githubusercontent.com/ddgksf2013/Rewrite/refs/heads/master/AdBlock/QiShuiMusicAds.conf" -o raw.conf
 
-          # 2. 写入自定义配置头 (包揽 QUIC 禁用与开屏拦截)
+          # 2. 写入自定义标头
           cat << 'EOF' > qishui.conf
           # ==========================================
           # 汽水音乐净化配置 (自动同步墨鱼 + 兼容福利中心领会员)
@@ -37,17 +37,28 @@ jobs:
 
           EOF
 
-          # 3. 使用 grep -v -E 硬核反向过滤（绝无死角剔除所有冲突关键字和包含它们的整行及注释）
-          grep -v -E "hostname|get_domains|media_ads|/luna/ads|/luna/commerce|视频广告|通用广告|广告弹窗|DNS处理" raw.conf >> qishui.conf || true
+          # 3. 使用 sed 逐行硬核清洗（删除含指定路径或注释的所有行）
+          sed -i '/hostname/d' raw.conf
+          sed -i '/get_domains/d' raw.conf
+          sed -i '/DNS处理/d' raw.conf
+          sed -i '/media_ads/d' raw.conf
+          sed -i '/视频广告/d' raw.conf
+          sed -i '/\/luna\/ads/d' raw.conf
+          sed -i '/通用广告/d' raw.conf
+          sed -i '/\/luna\/commerce/d' raw.conf
+          sed -i '/广告弹窗/d' raw.conf
 
-          # 4. 追加原生视频流净化尾部
+          # 4. 追加清洗后的规则内容
+          cat raw.conf >> qishui.conf
+
+          # 5. 追加自定义尾部
           cat << 'EOF' >> qishui.conf
 
           # > 03. 播放页面视频流净化 (原生 JSONJQ)
           ^https:\/\/(beta-luna\.douyin|api5-lq\.qishui)\.com\/luna\/me\/recently-played-media\? url jsonjq-response-body 'del(.media[] | select(.type == "video"))'
           EOF
 
-          # 5. 删除临时文件
+          # 6. 清理临时文件
           rm raw.conf
 
       - name: Commit and Push
@@ -55,4 +66,4 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add qishui.conf
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Pure Shell Filter: Completely remove blocking rules" && git push)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Fix sed stream filtering for QiShui config" && git push)
