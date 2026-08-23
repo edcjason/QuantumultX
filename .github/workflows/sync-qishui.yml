@@ -2,8 +2,8 @@ name: Sync QiShuiMusic Script
 
 on:
   schedule:
-    - cron: '0 0 * * *'
-  workflow_dispatch:
+    - cron: '0 0 * * *'  # 每天 UTC 0 点自动定时同步
+  workflow_dispatch:      # 支持在 GitHub 页面手动点击触发
 
 permissions:
   contents: write
@@ -17,36 +17,24 @@ jobs:
 
       - name: Fetch and Clean QiShui Config
         run: |
+          # 1. 拉取墨鱼原始规则
           curl -sSL "https://raw.githubusercontent.com/ddgksf2013/Rewrite/refs/heads/master/AdBlock/QiShuiMusicAds.conf" -o raw.conf
 
+          # 2. Python 精准匹配与净化处理
           python3 -c '
-          import unicodedata
-
           with open("raw.conf", "r", encoding="utf-8", errors="ignore") as f:
               lines = f.readlines()
 
-          # 需要彻底剔除的关键字列表（含 URL 路径和注释词）
-          bad_keywords = [
-              "hostname",
-              "get_domains",
-              "DNS处理",
-              "media_ads",
-              "视频广告",
-              "/luna/ads",      # 加上路径前缀，避免误杀其他正常词
-              "通用广告",
-              "/luna/commerce",
-              "广告弹窗"
-          ]
-
           cleaned_lines = []
           for line in lines:
-              # 将 \u00a0 等不间断空格统一转换为标准空格
-              norm_line = unicodedata.normalize("NFKC", line)
-              
-              # 只要包含任意一个黑名单关键字，直接丢弃该行
-              if any(k in norm_line for k in bad_keywords):
+              # 剔除墨鱼原有的 hostname 声明
+              if line.strip().startswith("hostname"):
                   continue
-              
+
+              # 核心清洗：只要包含这四个特征字符串，直接抛弃（阻断 DNS 以及卡死福利中心的 3 条广告接口）
+              if any(target in line for target in ["get_domains", "luna/ads", "luna/media_ads", "luna/commerce"]):
+                  continue
+
               cleaned_lines.append(line)
 
           body_text = "".join(cleaned_lines).strip()
@@ -82,4 +70,4 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add qishui.conf
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Fix NBSP encoding issue and clean rules" && git push)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Clean QiShui config: fix reward ads and QUIC conflict" && git push)
