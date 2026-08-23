@@ -15,18 +15,33 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Fetch and Patch QiShuiMusic Script
+      - name: Generate QiShuiMusic Config
         run: |
-          # 1. 下载墨鱼原版汽水音乐去广告脚本
-          curl -sSL "https://raw.githubusercontent.com/ddgksf2013/Rewrite/refs/heads/master/AdBlock/QiShuiMusicAds.conf" -o qishui.conf
+          cat << 'EOF' > qishui.conf
+          hostname = webcast-open.douyin.com, beta-luna.douyin.com, api.qishui.com, api5-lq.qishui.com, tnc*-*.zijieapi.com
 
-          # 2. 自动删除导致看广告领会员失败的两行拦截规则
-          sed -i '/\/luna\/media_ads/d' qishui.conf
-          sed -i '/\/luna\/ads/d' qishui.conf
+          # > 01. 强制禁用 QUIC/HTTP3 & HTTP-DNS
+          ^https:\/\/tnc\d-(bjlgy|ali[a-z]{2})\d?\.zijieapi\.com\/get_domains\/v\d\/\? url jsonjq-response-body '.data.opaque_data_enabled = 0 | .data.ttnet_http_dns_enabled = 0 | .data.ttnet_quic_enabled = 0 | .data.ttnet_tt_http_dns = 0 | .data.ttnet_dispatch_actions |= map(select(.action != "dispatch" and .action != "tc"))'
+
+          # > 02. 拦截开屏与弹窗
+          ^https:\/\/(beta-luna\.douyin|api5-lq\.qishui)\.com\/luna\/commerce\/upsells_config\? url reject-200
+          ^https:\/\/(beta-luna\.douyin|api5-lq\.qishui)\.com\/luna\/commerce\/upsells\? url reject-200
+          ^https:\/\/(beta-luna\.douyin|api5-lq\.qishui)\.com\/luna\/commerce\/v2\/commerce_info\? url reject-200
+          ^https:\/\/webcast-open\.douyin\.com\/webcast\/openapi\/feed\/\? url reject-200
+          ^https:\/\/(beta-luna\.douyin|api5-lq\.qishui)\.com\/luna\/treasure\/entrance\/config\? url reject-200
+          ^https:\/\/(beta-luna\.douyin|api5-lq\.qishui)\.com\/luna\/activities\? url reject-200
+          ^https:\/\/(beta-luna\.douyin|api5-lq\.qishui)\.com\/luna\/listen-video\/reminder\? url reject-200
+
+          # > 03. 净化 UI 布局
+          ^https:\/\/(beta-luna\.douyin|api5-lq\.qishui)\.com\/luna\/me\? url jsonjq-response-body 'del(.reward_ad_banner)'
+          ^https:\/\/(beta-luna\.douyin|api5-lq\.qishui)\.com\/luna\/feed\/song-tab\? url jsonjq-response-body 'del(.items[] | select(.type == "video_track_mix"))'
+          ^https:\/\/(beta-luna\.douyin|api5-lq\.qishui)\.com\/luna\/card\? url jsonjq-response-body 'del(.preview_guide) | del(.card_items[] | select(has("priority_display")))'
+          ^https:\/\/(beta-luna\.douyin|api5-lq\.qishui)\.com\/luna\/more-panel\? url jsonjq-response-body '.blocks |= map(select(.type != "related_video"))'
+          EOF
 
       - name: Commit and Push
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add qishui.conf
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto sync and patch QiShuiMusic script" && git push)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update Kelee-based QiShuiMusic rules" && git push)
