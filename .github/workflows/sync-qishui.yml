@@ -15,30 +15,28 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - name: Fetch and Clean QiShui Config via Python
+      - name: Fetch and Clean QiShui Config via Regex
         run: |
           # 1. 拉取墨鱼原始规则
           curl -sSL "https://raw.githubusercontent.com/ddgksf2013/Rewrite/refs/heads/master/AdBlock/QiShuiMusicAds.conf" -o raw.conf
 
-          # 2. 使用 Python 脚本执行严谨清洗与合并
+          # 2. 使用 Python 正则表达进行模糊穿透式清洗与合并
           python3 -c '
           import re
 
-          with open("raw.conf", "r", encoding="utf-8") as f:
-              lines = f.readlines()
+          with open("raw.conf", "r", encoding="utf-8", errors="ignore") as f:
+              content = f.read()
 
-          cleaned_lines = []
-          for line in lines:
-              # 剔除墨鱼声明的旧 hostname
-              if line.strip().startswith("hostname"):
-                  continue
-              # 剔除导致福利中心“看视频领会员”卡死的 3 条拦截
-              if any(k in line for k in ["/luna/media_ads", "/luna/ads", "/luna/commerce"]):
-                  continue
-              # 剔除墨鱼原版阻断 DNS/get_domains 的规则（防止破坏我们的 QUIC 降级）
-              if "get_domains" in line and "reject" in line:
-                  continue
-              cleaned_lines.append(line)
+          # 移除旧 hostname 声明
+          content = re.sub(r"hostname\s*=.*", "", content)
+
+          # 强制剔除包含 media_ads, /ads, /commerce 的所有规则行（忽略前后的正则路径匹配符号）
+          content = re.sub(r"^.*\/luna\/media_ads.*$\n?", "", content, flags=re.MULTILINE)
+          content = re.sub(r"^.*\/luna\/ads.*$\n?", "", content, flags=re.MULTILINE)
+          content = re.sub(r"^.*\/luna\/commerce.*$\n?", "", content, flags=re.MULTILINE)
+
+          # 强制剔除墨鱼原版的 DNS 阻断行
+          content = re.sub(r"^.*get_domains.*$\n?", "", content, flags=re.MULTILINE)
 
           header = """# ==========================================
           # 汽水音乐净化配置 (自动同步墨鱼 + 兼容福利中心领会员)
@@ -59,10 +57,13 @@ jobs:
           ^https:\\/\\/(beta-luna\\.douyin|api5-lq\\.qishui)\\.com\\/luna\\/me\\/recently-played-media\\? url jsonjq-response-body \x27del(.media[] | select(.type == "video"))\x27
           """
 
+          final_content = header + content + footer
+
+          # 清理连续空行
+          final_content = re.sub(r"\n\s*\n", "\n\n", final_content)
+
           with open("qishui.conf", "w", encoding="utf-8") as f:
-              f.write(header)
-              f.writelines(cleaned_lines)
-              f.write(footer)
+              f.write(final_content)
           '
           rm raw.conf
 
@@ -71,4 +72,4 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add qishui.conf
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Python clean: Fix reward ads and QUIC conflict" && git push)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Python Regex Clean: Force remove blocking rules" && git push)
