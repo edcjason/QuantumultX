@@ -2,8 +2,8 @@ name: Sync QiShuiMusic Script
 
 on:
   schedule:
-    - cron: '0 0 * * *'  # 每天定时自动同步
-  workflow_dispatch:      # 支持手动触发
+    - cron: '0 0 * * *'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -15,28 +15,41 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - name: Fetch and Clean QiShui Config via Regex
+      - name: Fetch and Clean QiShui Config
         run: |
-          # 1. 拉取墨鱼原始规则
           curl -sSL "https://raw.githubusercontent.com/ddgksf2013/Rewrite/refs/heads/master/AdBlock/QiShuiMusicAds.conf" -o raw.conf
 
-          # 2. 使用 Python 正则表达进行模糊穿透式清洗与合并
           python3 -c '
-          import re
+          import unicodedata
 
           with open("raw.conf", "r", encoding="utf-8", errors="ignore") as f:
-              content = f.read()
+              lines = f.readlines()
 
-          # 移除旧 hostname 声明
-          content = re.sub(r"hostname\s*=.*", "", content)
+          # 需要彻底剔除的关键字列表（含 URL 路径和注释词）
+          bad_keywords = [
+              "hostname",
+              "get_domains",
+              "DNS处理",
+              "media_ads",
+              "视频广告",
+              "/luna/ads",      # 加上路径前缀，避免误杀其他正常词
+              "通用广告",
+              "/luna/commerce",
+              "广告弹窗"
+          ]
 
-          # 强制剔除包含 media_ads, /ads, /commerce 的所有规则行（忽略前后的正则路径匹配符号）
-          content = re.sub(r"^.*\/luna\/media_ads.*$\n?", "", content, flags=re.MULTILINE)
-          content = re.sub(r"^.*\/luna\/ads.*$\n?", "", content, flags=re.MULTILINE)
-          content = re.sub(r"^.*\/luna\/commerce.*$\n?", "", content, flags=re.MULTILINE)
+          cleaned_lines = []
+          for line in lines:
+              # 将 \u00a0 等不间断空格统一转换为标准空格
+              norm_line = unicodedata.normalize("NFKC", line)
+              
+              # 只要包含任意一个黑名单关键字，直接丢弃该行
+              if any(k in norm_line for k in bad_keywords):
+                  continue
+              
+              cleaned_lines.append(line)
 
-          # 强制剔除墨鱼原版的 DNS 阻断行
-          content = re.sub(r"^.*get_domains.*$\n?", "", content, flags=re.MULTILINE)
+          body_text = "".join(cleaned_lines).strip()
 
           header = """# ==========================================
           # 汽水音乐净化配置 (自动同步墨鱼 + 兼容福利中心领会员)
@@ -57,10 +70,7 @@ jobs:
           ^https:\\/\\/(beta-luna\\.douyin|api5-lq\\.qishui)\\.com\\/luna\\/me\\/recently-played-media\\? url jsonjq-response-body \x27del(.media[] | select(.type == "video"))\x27
           """
 
-          final_content = header + content + footer
-
-          # 清理连续空行
-          final_content = re.sub(r"\n\s*\n", "\n\n", final_content)
+          final_content = header + "\n\n" + body_text + "\n\n" + footer
 
           with open("qishui.conf", "w", encoding="utf-8") as f:
               f.write(final_content)
@@ -72,4 +82,4 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add qishui.conf
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Python Regex Clean: Force remove blocking rules" && git push)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Fix NBSP encoding issue and clean rules" && git push)
