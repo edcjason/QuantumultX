@@ -13,48 +13,57 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
-      - name: Fetch and Perform Deep Patch
+      - name: Fetch and Clean QiShui Config via Python
         run: |
-          # 1. 从墨鱼仓库拉取最新原版
+          # 1. 拉取墨鱼原始规则
           curl -sSL "https://raw.githubusercontent.com/ddgksf2013/Rewrite/refs/heads/master/AdBlock/QiShuiMusicAds.conf" -o raw.conf
 
-          # 2. 生成标准的 Qx 配置文件头
-          cat << 'EOF' > qishui.conf
-          # ==========================================
+          # 2. 使用 Python 脚本执行严谨清洗与合并
+          python3 -c '
+          import re
+
+          with open("raw.conf", "r", encoding="utf-8") as f:
+              lines = f.readlines()
+
+          cleaned_lines = []
+          for line in lines:
+              # 剔除墨鱼声明的旧 hostname
+              if line.strip().startswith("hostname"):
+                  continue
+              # 剔除导致福利中心“看视频领会员”卡死的 3 条拦截
+              if any(k in line for k in ["/luna/media_ads", "/luna/ads", "/luna/commerce"]):
+                  continue
+              # 剔除墨鱼原版阻断 DNS/get_domains 的规则（防止破坏我们的 QUIC 降级）
+              if "get_domains" in line and "reject" in line:
+                  continue
+              cleaned_lines.append(line)
+
+          header = """# ==========================================
           # 汽水音乐净化配置 (自动同步墨鱼 + 兼容福利中心领会员)
           # ==========================================
 
           hostname = webcast-open.douyin.com, beta-luna.douyin.com, api.qishui.com, api5-lq.qishui.com, tnc*-*.zijieapi.com
 
           # > 01. 强制禁用 QUIC/HTTP3 & HTTP-DNS (彻底封堵开屏穿透)
-          ^https:\/\/tnc\d-(bjlgy|ali[a-z]{2})\d?\.zijieapi\.com\/get_domains\/v\d\/\? url jsonjq-response-body '.data.opaque_data_enabled = 0 | .data.ttnet_http_dns_enabled = 0 | .data.ttnet_quic_enabled = 0 | .data.ttnet_tt_http_dns = 0 | .data.ttnet_dispatch_actions |= map(select(.action != "dispatch" and .action != "tc"))'
+          ^https:\\/\\/tnc\\d-(bjlgy|ali[a-z]{2})\\d?\\.zijieapi\\.com\\/get_domains\\/v\\d\\/\\? url jsonjq-response-body \x27.data.opaque_data_enabled = 0 | .data.ttnet_http_dns_enabled = 0 | .data.ttnet_quic_enabled = 0 | .data.ttnet_tt_http_dns = 0 | .data.ttnet_dispatch_actions |= map(select(.action != "dispatch" and .action != "tc"))\x27
 
           # > 02. 精准开屏与直播弹窗拦截
-          ^https:\/\/(beta-luna\.douyin|api5-lq\.qishui)\.com\/luna\/splash url reject-200
-          ^https:\/\/webcast-open\.douyin\.com\/webcast\/openapi\/feed\/\? url reject-200
-          EOF
+          ^https:\\/\\/(beta-luna\\.douyin|api5-lq\\.qishui)\\.com\\/luna\\/splash url reject-200
+          ^https:\\/\\/webcast-open\\.douyin\\.com\\/webcast\\/openapi\\/feed\\/\\? url reject-200
+          """
 
-          # 3. 对墨鱼原版规则进行清洗（只剔除影响福利中心的 3 条规则，保留其余所有优化）
-          sed -i '/\/luna\/media_ads/d' raw.conf
-          sed -i '/\/luna\/ads\//d' raw.conf
-          sed -i '/\/luna\/commerce\/v2\/commerce_info/d' raw.conf
-          
-          # 4. 修正墨鱼规则的主机名声明，防止覆盖
-          sed -i '/^hostname\s*=/d' raw.conf
-
-          # 5. 合并清洗后的墨鱼规则
-          cat raw.conf >> qishui.conf
-
-          # 6. 追加播放页原生视频流净化 (替换不可用的外链 JS)
-          cat << 'EOF' >> qishui.conf
-
+          footer = """
           # > 03. 播放页面视频流净化 (原生 JSONJQ)
-          ^https:\/\/(beta-luna\.douyin|api5-lq\.qishui)\.com\/luna\/me\/recently-played-media\? url jsonjq-response-body 'del(.media[] | select(.type == "video"))'
-          EOF
+          ^https:\\/\\/(beta-luna\\.douyin|api5-lq\\.qishui)\\.com\\/luna\\/me\\/recently-played-media\\? url jsonjq-response-body \x27del(.media[] | select(.type == "video"))\x27
+          """
 
-          # 清理临时文件
+          with open("qishui.conf", "w", encoding="utf-8") as f:
+              f.write(header)
+              f.writelines(cleaned_lines)
+              f.write(footer)
+          '
           rm raw.conf
 
       - name: Commit and Push
@@ -62,4 +71,4 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add qishui.conf
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Fix logic conflict: Suppress splash ad while preserving reward ads" && git push)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Python clean: Fix reward ads and QUIC conflict" && git push)
