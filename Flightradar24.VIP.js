@@ -1,18 +1,15 @@
 /**
- * Flightradar24 VIP 解锁脚本（去混淆纯净版）
- * 原作者: By Anni
+ * Flightradar24 Gold Unlocked (ddgksf2013 源逻辑纯净版)
+ * 托管仓库: edcjason/QuantumultX
  */
 
-let body = $response.body;
-
-if (body) {
-    // 构造完整的 Gold 顶级会员权限响应体
+if (typeof $task !== 'undefined') {
     let obj = {
         "status": "success",
         "userData": {
             "oAuthId": null,
-            "idUser": 12345678,
-            "dateExpires": 4099518079,
+            "idUser": 10348222,
+            "dateExpires": 4667722457,
             "subscriptionKey": "Gold",
             "countryCode": null,
             "dateLastLogin": "2023-01-01 00:00:00",
@@ -20,50 +17,56 @@ if (body) {
             "isActive": true,
             "hasConsented": true,
             "localeCode": "zh-CN",
-            "name": "By Anni",
+            "name": "ddgksf2013",
             "typeSource": "ios",
             "subscriptions": {
                 "0": {
-                    "dateExpires": 4099518079,
-                    "sortOrder": 2,
-                    "isOnTrial": true,
-                    "sku": "gold_yearly",
+                    "dateExpires": 4667722457,
+                    "sku": "subscription.premium.gold.annual",
                     "originalBillingPeriod": 365,
                     "typePlatform": "ios",
                     "typeStatus": "active",
                     "name": "Gold",
-                    "typeSubscription": "Gold"
+                    "typeSubscription": "annual"
                 }
             },
-            "tokenLogin": "token_login_placeholder_string",
-            "accessToken": "access_token_placeholder_string",
+            "tokenLogin": "",
+            "accessToken": "",
             "publicKey": null,
-            "identity": "By Anni",
+            "identity": "ddgksf2013",
             "isLoggedin": true,
             "accountType": "Gold",
-            "isAnonymousAccount": true,
+            "isAnonymousAccount": false,
             "hasPassword": false,
             "features": {
-                "map.filters.unblocking": "enabled",
                 "app.ios": "enabled",
+                "map.info.flight.ems.mach": "enabled",
+                "map.layer.ndb.alt.high": "enabled",
                 "map.filters.max": 25,
                 "user.fleets.max.aircraft": 1000,
+                "map.layer.atc": "enabled",
                 "map.info.flight.ground-speed": "enabled",
+                "map.view.list": "enabled",
                 "map.info.flight.track": "enabled",
+                "map.info.flight.ems.tas": "enabled",
                 "map.layer.waypoints": "enabled",
+                "map.layer.weather.auradar": "enabled",
+                "map.info.flight.airspace": "enabled",
                 "map.info.aircraft.type": "enabled",
                 "history.playback.flight.days": 365,
                 "history.playback.global.days": 365,
                 "map.data.delaystats": "enabled",
                 "user.fleets.max": 3,
                 "map.data.flarm": "enabled",
-                "map.filters.fleets": "enabled",
-                "map.layer.trail.tooltip": "enabled",
-                "support.platform": "ios",
+                "map.info.flight.ems.ias": "enabled",
+                "map.layer.weather.radar.global": "enabled",
+                "support.platform": "Limited",
                 "map.view.3d.basic": 3,
                 "map.info.aircraft.msn": "enabled",
                 "map.data.satellite": "enabled",
                 "support.level": "gold",
+                "map.info.flight.ems.wind": "enabled",
+                "map.layer.ndb.charts": "enabled",
                 "map.view.radar": "enabled",
                 "history.flight.days": 365,
                 "map.view.multi": "enabled",
@@ -71,8 +74,11 @@ if (body) {
                 "map.widgets.last_clicked_flights": "enabled",
                 "map.info.flight.calibrated-altitude": "enabled",
                 "user.alerts.max": 25,
+                "map.layer.tracks.oceanic": "enabled",
                 "map.info.airport.arrivals": "enabled",
+                "map.info.flight.ems.oat": "enabled",
                 "map.view.delay": "enabled",
+                "map.layer.weather.naradar": "enabled",
                 "map.widgets.bookmarks.max": 25,
                 "user.sessions.max": 3,
                 "map.info.airport.departures": "enabled",
@@ -80,48 +86,61 @@ if (body) {
                 "map.data.ads-b": "enabled",
                 "history.playback.days": 365,
                 "map.data.mlat": "enabled",
-                "map.filters.receivers": "enabled",
                 "map.view.3d": "enabled",
                 "map.info.flight.position": "enabled",
                 "adverts": "disabled",
                 "map.view.fullscreen": "enabled",
-                "user.users": 3,
+                "map.layer.ndb.alt.low": "enabled",
+                "map.layer.weather.satellite": "enabled",
                 "map.layer.weather.volcano": "enabled",
                 "app.android": "enabled",
                 "map.data.faa": "enabled",
-                "usage.rights": "personal",
-                "map.hide_header": "enabled",
+                "user.users": 1,
+                "usage.rights": "Private",
                 "map.search": "enabled",
                 "map.timeout.mins": -1,
                 "map.info.flight.squawk": "enabled",
                 "map.layer.weather": "enabled",
                 "map.info.flight": "enhanced",
                 "history.aircraft.days": 365,
-                "map.filters.categories": "enabled",
-                "map.sidemenu.photo.hide": "enabled",
                 "map.info.aircraft.registration": "enabled",
                 "map.tracking.live": "enabled",
+                "map.layer.navdata": "enabled",
                 "history.flight.kml": 25,
+                "map.info.flight.ems": "enabled",
                 "map.info.flight.vertical-speed": "enabled",
                 "map.widgets.bookmarks": "enabled",
                 "map.labels.rows": 4,
                 "map.status.flight": "enabled",
                 "map.info.aircraft.age": "enabled",
+                "map.info.flight.ems.alt.gps": "enabled",
+                "map.layer.ndb": "enabled",
                 "map.info.airport.onground.hours": 720,
+                "map.layer.vor": "enabled",
                 "map.view.fleet.onground": 1,
+                "map.layer.weather.radar": "enabled",
                 "user.bookmarks.max": 25
             },
             "oAuth": null
         },
-        "message": "Success",
+        "transactions": {
+            "20001133865890": {
+                "status": "valid",
+                "match": "self",
+                "expires": 4667722457000,
+                "started": 1666500000000
+            }
+        },
+        "message": "Subscription has been successfully created",
         "msg": "Success",
         "response_code": 100,
         "success": true,
-        "token": "token_placeholder"
+        "token": "",
+        "responseCode": 100,
+        "accessToken": ""
     };
 
-    body = JSON.stringify(obj);
+    $done({ body: JSON.stringify(obj) });
+} else {
+    $done({});
 }
-
-// 纯本地修改，绝无外联
-$done({ body });
