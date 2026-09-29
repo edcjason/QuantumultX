@@ -1,3 +1,13 @@
+/*
+
+[rewrite_local]
+
+^https:\/\/buy\.itunes\.apple\.com\/verifyReceipt$ url script-response-body https://raw.githubusercontent.com/510004015/Quantumult_X/Remote/Premium/iScreen.js
+
+[mitm] 
+
+hostname = buy.itunes.apple.com
+
 */
 
 var Premium = $response.body;
